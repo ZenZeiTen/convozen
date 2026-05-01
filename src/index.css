@@ -1,0 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-zen-bg: #FAFAF7;
+  --color-zen-text: #1A1A1A;
+  --color-zen-border: #D8D5D0;
+  --color-zen-accent: #C84A3A;
+  --color-zen-accent-hover: #b03d2b;
+  --color-zen-card: #FFFFFF;
+  
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --shadow-zen: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+@layer base {
+  body {
+    @apply font-sans font-light tracking-wide bg-zen-bg text-zen-text transition-colors duration-500;
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "Configuration": {
+      "title": "Configuration",
+      "description": "Global Bot Configuration",
+      "type": "object",
+      "properties": {
+        "botPrompt": { "type": "string" },
+        "quickReplies": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "whatsappToken": { "type": "string" },
+        "whatsappPhoneNumberId": { "type": "string" },
+        "webhookVerifyToken": { "type": "string" }
+      }
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "A conversation with a customer",
+      "type": "object",
+      "properties": {
+        "updatedAt": { "type": "number" },
+        "isTyping": { "type": "boolean" },
+        "isAgentHandled": { "type": "boolean" },
+        "customerName": { "type": "string" },
+        "tags": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notes": { "type": "string" },
+        "priority": { 
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "unreadCount": { "type": "number" },
+        "crmFields": {
+          "type": "object",
+          "properties": {
+             "email": { "type": "string" },
+             "orderId": { "type": "string" },
+             "ltv": { "type": "number" }
+          }
+        }
+      },
+      "required": ["updatedAt"]
+    },
+    "ChatMessage": {
+       "title": "ChatMessage",
+       "description": "A message within a conversation",
+       "type": "object",
+       "properties": {
+         "role": { "type": "string", "enum": ["user", "model"] },
+         "text": { "type": "string" },
+         "timestamp": { "type": "number" },
+         "agentHandled": { "type": "boolean" },
+         "status": { "type": "string", "enum": ["sent", "delivered", "read", "failed"] },
+         "failureReason": { "type": "string" },
+         "feedback": { "type": "string", "enum": ["up", "down"] },
+         "type": { "type": "string" }
+       },
+       "required": ["role", "text", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/config/bot": {
+      "schema": { "$ref": "#/entities/Configuration" },
+      "description": "The configuration document"
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "Conversation representation"
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Chat messages in a conversation"
+    }
+  }
+}

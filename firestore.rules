@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { allow read, write: if false; }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function isAdmin() { return isSignedIn() && request.auth.token.email == 'admin@nusalexia.co.id'; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isOwner() { return existing().ownerId == request.auth.uid; }
+    function isOwnerIncoming() { return incoming().ownerId == request.auth.uid; }
+
+    function isValidConfig(data) {
+      return data.keys().hasAll(['ownerId', 'botPrompt', 'quickReplies', 'whatsappToken', 'whatsappPhoneNumberId', 'webhookVerifyToken']) &&
+             data.keys().size() == 6 &&
+             data.ownerId is string && data.ownerId.size() <= 128 &&
+             data.botPrompt is string && data.botPrompt.size() <= 5000 &&
+             data.quickReplies is list && data.quickReplies.size() <= 20 &&
+             (data.quickReplies.size() == 0 || data.quickReplies[0] is string) &&
+             data.whatsappToken is string && data.whatsappToken.size() <= 500 &&
+             data.whatsappPhoneNumberId is string && data.whatsappPhoneNumberId.size() <= 100 &&
+             data.webhookVerifyToken is string && data.webhookVerifyToken.size() <= 100;
+    }
+
+    match /config/{docId} {
+      allow get: if isSignedIn() && isOwner();
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(docId) && isOwnerIncoming() && isValidConfig(incoming());
+      allow update: if isSignedIn() && isValidId(docId) && isOwner() && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['botPrompt', 'quickReplies', 'whatsappToken', 'whatsappPhoneNumberId', 'webhookVerifyToken']) &&
+        incoming().botPrompt is string && incoming().botPrompt.size() <= 5000 &&
+        incoming().quickReplies is list && incoming().quickReplies.size() <= 20 &&
+        (incoming().quickReplies.size() == 0 || incoming().quickReplies[0] is string) &&
+        incoming().whatsappToken is string && incoming().whatsappToken.size() <= 500 &&
+        incoming().whatsappPhoneNumberId is string && incoming().whatsappPhoneNumberId.size() <= 100 &&
+        incoming().webhookVerifyToken is string && incoming().webhookVerifyToken.size() <= 100
+      );
+    }
+
+    function isValidConversation(data) {
+      return data.keys().hasAll(['ownerId', 'updatedAt', 'isTyping', 'isAgentHandled', 'customerName', 'tags', 'notes', 'priority', 'unreadCount', 'crmFields']) &&
+             data.keys().size() == 10 &&
+             data.ownerId is string &&
+             data.updatedAt == request.time &&
+             data.isTyping is bool &&
+             data.isAgentHandled is bool &&
+             data.customerName is string && data.customerName.size() <= 100 &&
+             data.tags is list && data.tags.size() <= 20 &&
+             (data.tags.size() == 0 || data.tags[0] is string) &&
+             data.notes is string && data.notes.size() <= 5000 &&
+             data.priority is string && data.priority.matches('^(low|medium|high)$') &&
+             data.unreadCount is number &&
+             data.crmFields is map && data.crmFields.size() <= 10;
+    }
+
+    match /conversations/{conversationId} {
+      allow get: if isSignedIn() && isValidId(conversationId) && isOwner();
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(conversationId) && isOwnerIncoming() && isValidConversation(incoming());
+      allow update: if isSignedIn() && isValidId(conversationId) && isOwner() && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'isTyping', 'isAgentHandled', 'customerName', 'tags', 'notes', 'priority', 'unreadCount', 'crmFields']) &&
+        incoming().updatedAt == request.time
+      );
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(conversationId) && isValidId(messageId) && get(/databases/$(database)/documents/conversations/$(conversationId)).data.ownerId == request.auth.uid;
+        allow list: if isSignedIn() && isValidId(conversationId) && get(/databases/$(database)/documents/conversations/$(conversationId)).data.ownerId == request.auth.uid;
+        allow create: if isSignedIn() && isValidId(conversationId) && isValidId(messageId) && (
+          get(/databases/$(database)/documents/conversations/$(conversationId)).data.ownerId == request.auth.uid &&
+          incoming().keys().hasAll(['role', 'text', 'timestamp', 'agentHandled', 'status', 'failureReason', 'feedback', 'type']) &&
+          incoming().keys().size() == 8 &&
+          incoming().role in ['user', 'model'] &&
+          incoming().text is string && incoming().text.size() <= 10000 &&
+          incoming().timestamp is number &&
+          incoming().agentHandled is bool &&
+          incoming().status is string && incoming().status.size() <= 20 &&
+          incoming().failureReason is string && incoming().failureReason.size() <= 500 &&
+          incoming().feedback is string && incoming().feedback.size() <= 20 &&
+          incoming().type is string && incoming().type.size() <= 20 &&
+          exists(/databases/$(database)/documents/conversations/$(conversationId))
+        );
+        allow update: if isSignedIn() && isValidId(conversationId) && isValidId(messageId) && (
+          get(/databases/$(database)/documents/conversations/$(conversationId)).data.ownerId == request.auth.uid &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'failureReason', 'feedback'])
+        );
+      }
+    }
+  }
+}

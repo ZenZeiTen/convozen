@@ -1,0 +1,6 @@
+{
+  "name": "ConvoZen",
+  "description": "A smart customer service and sales app for WhatsApp using the Meta API and Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
